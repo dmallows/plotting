@@ -3,6 +3,8 @@ import itertools
 import Queue as queue
 import multiprocessing as mp
 import cairo
+import _freetype
+import tex
 
 # We could quite easily simplify most of this by using a 'new' (2010)
 # RecordingSurface from Cairo,  but then we would lose a lot of the niceness of
@@ -19,25 +21,29 @@ import cairo
 
 class CairoBackend(object):
 
-    def show(self, pic, block):
-        try:
-            self.gui.show(pic, block)
-        except AttributeError:
-            gui = GuiRemote()
-            gui.show(pic, block)
-            self.gui = gui
+#    def show(self, pic, block):
+#        try:
+#            self.gui.show(pic, block)
+#        except AttributeError:
+#            gui = GuiRemote()
+#            gui.show(pic, block)
+#            self.gui = gui
 
 
-    def save(self, pic, filename, filetype):
+    def save(self, picture, filename, filetype):
         # Determine the filetype automatically from filename
         #surf = cairo.ImageSurface(cairo.FORMAT_RGB24, 300, 300)
-        surf = cairo.PDFSurface(filename, 300, 300)
+
+        dx, dy, w, h = self.size(picture)
+
+        surf = cairo.PDFSurface(filename, w - dx, h - dy)
         cr = cairo.Context(surf)
+        cr.translate(-dx, -dy)
         #cr.save()
         #cr.set_source_rgb(1,1,1)
         #cr.paint()
         #cr.restore()
-        CairoRenderer(cr).draw_picture(pic)
+        CairoRenderer(cr).draw_picture(picture)
         #surf.write_to_png(filename)
         surf.finish()
 
@@ -51,10 +57,6 @@ class CairoBackend(object):
         c.size_picture(picture)
         return c.extents
 
-
-# Freetype stuff here?
-
-# Does it matter (really) if we *just* use threads here?
 
 class CairoRenderer(object):
     def __init__(self, cr):
@@ -72,6 +74,10 @@ class CairoRenderer(object):
 
     def draw_rotate(self, angle, radians=math.radians):
         self._cr.rotate(radians(angle))
+
+    def draw_text(self):
+        # This will, in the near future, draw text
+        pass
 
     def draw_scale(self, xscale, yscale=None):
         yscale = yscale or xscale
@@ -210,6 +216,7 @@ class CairoSizer(CairoRenderer):
 
 class GtkViewer(object):
     def __init__(self, picture, backend):
+        import gtk
         self._picture = picture
         self._backend = backend
         self._window = gtk.Window()
@@ -288,7 +295,7 @@ class GuiRemote(object):
                 raise AttributeError
         except AttributeError:
             self.queue = mp.Queue()
-            self.process = mp.Process(target=GuiRemote.run_gui, args=(self.queue,))
+            self.process = mp.Process(target=GuiRemote_run_gui, args=(self.queue,))
             import __main__ as main
             self.process.daemon = True
             self.process.start()
@@ -304,31 +311,31 @@ class GuiRemote(object):
                 except KeyboardInterrupt:
                     pass
 
-    @staticmethod
-    def run_gui(queue):
-        import gtk
-        import gobject
-        import threading
-    
-        backend = CairoBackend()
 
-        gobject.threads_init()
+def GuiRemote_run_gui(queue):
+    import gobject
+    import gtk
+    import threading
 
-        viewer = GtkViewer(queue.get(), backend)
+    backend = CairoBackend()
 
-        def queue_watcher():
-            viewer.set_picture(queue.get())
+    gobject.threads_init()
 
-        t = threading.Thread(target=queue_watcher)
-        t.daemon=True
-        t.start()
+    viewer = GtkViewer(queue.get(), backend)
 
-        try:
-            viewer.run()
-        except KeyboardInterrupt:
-            pass
+    def queue_watcher():
+        viewer.set_picture(queue.get())
 
-        queue.close()
+    t = threading.Thread(target=queue_watcher)
+    t.daemon=True
+    t.start()
+
+    try:
+        viewer.run()
+    except KeyboardInterrupt:
+        pass
+
+    queue.close()
 
 
 default_units = {
@@ -340,14 +347,16 @@ default_units = {
 }
 
 
+default_backend = CairoBackend()
+
 class Picture(object):
     """A drawing is a sequence of commands."""
     __slots__ = ['commands', 'backend', '_units', '_default_units']
 
 
-    def __init__(self, commands=None, backend=default_backend,
-                 units=default_units):
+    def __init__(self, commands=None, backend=default_backend, units=default_units):
         self.commands = [] if commands is None else commands
+        self.backend = backend
         self._default_units = units.get('default', 'pt')
         self._units = default_units
 
@@ -440,21 +449,23 @@ class Picture(object):
         Save the picture to a file.
 
         """
-        return default_backend.save(self, filename, filetype)
+        return self.backend.save(self, filename, filetype)
+
+
 
     def show(self, block=False):
         """
         Show the picture.
 
         """
-        return default_backend.show(self, block)
+        return self.backend.show(self, block)
 
     def size(self):
         """
         Show the picture.
 
         """
-        return default_backend.size(self)
+        return self.backend.size(self)
 
     def defaultUnit(self, name):
         self._default_units = name
@@ -478,5 +489,11 @@ class Picture(object):
     def __repr__(self):
         return '<Picture(%r)>' % self.commands
 
+
 p = Picture()
-p.show()
+p.move_to(0, 0).linecap('round').line_to(10,10).stroke()
+p.save('output.pdf')
+
+
+td = tex.TexDaemon('test.tex').start()
+print td.page('page')

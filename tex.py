@@ -968,12 +968,12 @@ DEFAULT_TEMPLATE_STR = r"""
 \documentclass[12pt]{article}
 \usepackage[T1]{fontenc}
 \usepackage[active]{preview}
-\usepackage[hz, protusion]{microtype}
+\usepackage{microtype}
 \usepackage[T1]{fontenc}
 \usepackage[]{eulervm}
 
-\def\prepage{\begin{preview}}
-\def\postpage{\end{preview}}
+\def\startpage{\begin{preview}}
+\def\stoppage{\end{preview}}
 
 %Additional packages
 \additionalpackages
@@ -1004,10 +1004,9 @@ class TexTemplate(object):
             if m:
                 name = m.group(1)
                 val = m.group(2)
-                if name in {'prepage', 'postpage'}:
+                if name in {'startpage', 'stoppage'}:
                     setattr(self, name, val)
                     
-
     def add_package(self, package, *opts):
         self.packages.append((package, opts))
         return self
@@ -1027,9 +1026,8 @@ class TexTemplate(object):
     def postamble(self):
         return self.post
 
-    @staticmethod
-    def page(content):
-        return r"\n{%s}\n\end{preview}\n" % content
+    def page(self, content):
+        return "%s\n%s\n%s" % (self.startpage, content, self.stoppage)
 
 
 DEFAULT_TEMPLATE = TexTemplate(DEFAULT_TEMPLATE_STR)
@@ -1107,8 +1105,6 @@ def watch_stdout(f, output_queue):
     xs = iterator_reader(f)
     xs, ys = itertools.tee(xs)
     parsings = itertools.imap(tp.feed, xs)
-    for y in ys:
-        print y
 
     errors = []
     for c, n in itertools.chain.from_iterable(parsings):
@@ -1176,7 +1172,11 @@ class TexDaemon(object):
         self._output = itertools.chain.from_iterable(
             queue_iter(self.output_queue))
 
-        self.page('\LaTeX')
+        p = self._template.page('\LaTeX')
+        self._put(p + '\n\n')
+        self.sync.release()
+        self.watch_queue.get(timeout=5)
+        self.output_queue.get()
 
     def start(self):
         return self
@@ -1186,6 +1186,10 @@ class TexDaemon(object):
         p = self._template.page(tex)
         #print(p)
         self._put(p + '\n\n')
+        self.sync.release()
+
+        w = self.watch_queue.get()
+        return w, self.output_queue.get()
 
         #:w
         #try:
@@ -1193,7 +1197,6 @@ class TexDaemon(object):
         #except queue.Empty:
         #    return ([], [], []), ''
         #else:
-        self.sync.release()
         #dvi = self.output_queue.get()
 
 
@@ -1213,14 +1216,3 @@ class TexDaemon(object):
         except:
             pass
 
-
-# We start early with the input queue so that it is ready.
-if __name__ == '__main__':
-    td = TexDaemon('test.tex').start()
-    while True:
-        td.page(r'''
-                        \parbox{4cm}{It's 2003, and {\TeX} has become almost
-                        ubiquitous. It is everywhere. It should be on our fridges,
-                        our televisions, and in our hearts and minds. {\bf
-                        Everybody} should see its superior typesetting, and appreciate its
-                        beauty.''')
