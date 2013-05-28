@@ -7,9 +7,13 @@ import itertools
 import re
 from functools import partial
 from contextlib import contextmanager
+import tempfile
+import shutil
 
-try: import Queue as queue
-except ImportError: import queue
+try:
+    import Queue as queue
+except ImportError:
+    import queue
 
 DVI2TP = 2**-16
 TP2PT = 72.00 / 72.27
@@ -18,7 +22,7 @@ DVI2PT = DVI2TP * TP2PT
 def read_bytes(stream, n, islice=itertools.islice):
     """
     Read the given number of bytes from given byte iterator
-   
+
    """
     return bytearray(islice(stream, n))
 
@@ -27,7 +31,7 @@ def read_string(stream, n,
                 imap=itertools.imap, islice=itertools.islice):
     """
     Read the given number of chars from given byte iterator
-    
+
     """
     return ''.join(imap(chr, islice(stream, n)))
 
@@ -40,7 +44,7 @@ def fmt(*fields):
     """
     Combine parsers together, returning a composite parser which applies each in
     sequence and returns a tuple of their results.
-    
+
     """
     names = [i.__name__ for i in fields]
     keywords = (', '.join('%s=%s' % (i,i) for i in set(names)))
@@ -62,14 +66,14 @@ def fmt(*fields):
 def I1(stream):
     total = next(stream)
     return total
-            
+
 
 def I2(stream):
     total = next(stream)
     total *= 256
     total += next(stream)
     return total
-            
+
 
 def I3(stream):
     total = next(stream)
@@ -78,7 +82,7 @@ def I3(stream):
     total *= 256
     total += next(stream)
     return total
-            
+
 
 def I4(stream):
     total = next(stream)
@@ -89,7 +93,7 @@ def I4(stream):
     total *= 256
     total += next(stream)
     return total
-            
+
 
 def i1(stream):
     total = next(stream)
@@ -97,7 +101,7 @@ def i1(stream):
     if total >= 128:
         total -= 256
     return total
-           
+
 
 def i2(stream):
     total = next(stream)
@@ -107,7 +111,7 @@ def i2(stream):
     if total >= 32768:
         total -= 65536
     return total
-           
+
 
 def i3(stream):
     total = next(stream)
@@ -119,7 +123,7 @@ def i3(stream):
     if total >= 8388608:
         total -= 16777216
     return total
-           
+
 
 def i4(stream):
     total = next(stream)
@@ -133,14 +137,16 @@ def i4(stream):
     if total >= 2147483648:
         total -= 4294967296
     return total
-           
+
 
 # Want an array of these
 unsigned = None, I1, I2, I3, I4
 signed = None, i1, i2, i3, i4
 
 
-# Kpsewhich is the standard unixy way of finding TeX files
+# Kpsewhich is the standard unixy way of finding TeX files. Unfortunately, the
+# TeX distros on a certain outdated run target (SLC5) does not come with the
+# kpsewhich library. So we have to make do with the program
 def kpsewhich(fname):
     """Run kpsewhich with the necessary arguments"""
     query = 'kpsewhich', fname
@@ -221,7 +227,7 @@ class FontMap(object):
         self._encodings.update(zip(new_encodings, map(read_encoding, new_encodings)))
 
         encodings = [(e, all_encs[e]) for e in encodings]
-        
+
         self._pfbs.update((i, kpsewhich(i)) for i in frozenset(pfbs).difference(self._pfbs))
 
         pfbs = [self._pfbs[i] for i in pfbs]
@@ -300,7 +306,7 @@ class FontMetrics(object):
 
             chars.append((i, (
                 widths[width_ix],
-                heights[height_ix], 
+                heights[height_ix],
                 depths[depth_ix])))
 
 
@@ -312,7 +318,7 @@ class Dispatcher(object):
     """Hides a _lot_ of the complexity / boilerplate"""
     def __init__(self):
         self.ops = {}
-    
+
     # A contextmanager that returns a decorator. What could be simpler? :)
     @contextmanager
     def op(self):
@@ -326,7 +332,7 @@ class Dispatcher(object):
         yield op
         self._make_tables()
 
-    
+
     def _make_tables(self):
         # For efficiency and convenience, we define two tables at compile
         # (import) time. One is the lookup table, which returns a set for 
@@ -467,7 +473,7 @@ class DviState(object):
 
     def push(self):
         self.stack.append(self.state)
-    
+
     def pop(self):
         self.state = self.stack.pop()
 
@@ -689,7 +695,7 @@ with vf.op() as op:
 
     @op(247)
     def pre(_, stream, state,
-            read_string=read_string, 
+            read_string=read_string,
             fmt1=fmt(I1, I1), fmt2=fmt(I4, I4)):
         i, k = fmt1(stream)
         x = read_string(stream, k)
@@ -743,7 +749,7 @@ vf_read_main = vf.reader(blacklist=['pre'], end_on=['post'])
 class T1Font(object):
     """
     TeX has Type 1 fonts. This class represents those.
-    
+
     """
     def __init__(self, filename, font, enc, scale=1.0):
         self.enc = enc
@@ -759,7 +765,7 @@ class T1Font(object):
 class VirtualFont(object):
     """
     TeX has virtual fonts. This class represents those.
-    
+
     """
     def __init__(self, filename, texfont,
                  read_pre=vf_read_pre, read_main=vf_read_main):
@@ -816,7 +822,7 @@ class VirtualFont(object):
 
         state.pop()
 
-        state.font = texfont 
+        state.font = texfont
         state.fonts = texfonts
         renderer.font = font
         renderer.fonts = fonts
@@ -850,7 +856,7 @@ class DviSlave():
         # After about ~1min of thinking, this inelegant solution was proposed!
         if not self.in_vf:
             self.sizer.on_put_char(state, i)
-        
+
     def on_fnt_def(self, texfont):
         r = fontmap.get(texfont.name)
         if r:
@@ -982,7 +988,7 @@ DEFAULT_TEMPLATE_STR = r"""
 
 \pages
 
-\end{document} 
+\end{document}
 
 """.strip()
 
@@ -992,7 +998,7 @@ class TexTemplate(object):
     Process a TeX template object. The TeX template format is quite natural
     from a TeX point of view, and allows for avoiding the preview package by
     use of page breaks etc.
-    
+
     """
     def __init__(self, template_string):
         self.packages = []
@@ -1006,7 +1012,7 @@ class TexTemplate(object):
                 val = m.group(2)
                 if name in {'startpage', 'stoppage'}:
                     setattr(self, name, val)
-                    
+
     def add_package(self, package, *opts):
         self.packages.append((package, opts))
         return self
@@ -1037,7 +1043,7 @@ def queue_iter(queue):
     """
     Create an iterator over a queue of iterables (e.g. strings or
     bytearrays)
-    
+
     """
     while True:
         x = queue.get()
@@ -1065,8 +1071,10 @@ class SessionProcess(object):
         self.depends = depends
         self.process = sp.Popen(
             args, stdin=stdin, stdout=stdout,
-            stderr=sp.PIPE, preexec_fn = os.setpgrp, 
+            stderr=sp.PIPE, preexec_fn = os.setpgrp,
             close_fds=True)
+    def kill(self):
+        self.process.kill()
 
     def __del__(self):
         try:
@@ -1117,7 +1125,6 @@ def watch_stdout(f, output_queue):
             errors.append(n)
             output_queue.put((-1, errors))
             errors = []
-            
 
 
 def read_output(filename, output_queue, sync):
@@ -1144,26 +1151,48 @@ def daemon(target, *args):
     t.start()
     return t
 
+class TempDir(object):
+    def __init__(self, dir, prefix):
+        self.path = tempfile.mkdtemp(prefix=prefix, dir=None)
+
+    def named_pipe(self, name):
+        filename = os.path.join(self.path, name)
+        os.mkfifo(filename)
+        return filename
+
+    def close(self):
+        shutil.rmtree(self.path)
+
+    def __del__(self):
+        try:
+            shutil.rmtree(self.path)
+        except:
+            pass
 
 class TexDaemon(object):
-    def __init__(self, filename, template=None):
-        self.filename = filename
+    def __init__(self, template=None, dir=None):
         self.input_queue = queue.Queue()
         self.output_queue = queue.Queue()
         self.watch_queue = queue.Queue()
         self._template = template or DEFAULT_TEMPLATE
 
+        self.tempdir = TempDir(dir, prefix='texlet_')
+
+        tex_pipe = self.tempdir.named_pipe('texlets.tex')
+        dvi_pipe = self.tempdir.named_pipe('texlets.dvi')
+
         self.sync = threading.Semaphore(0)
 
         self._tex = SessionProcess(
-            ['latex', '-interaction=nonstopmode', '-ipc', self.filename],
+            ['latex', '-output-directory', self.tempdir.path,
+             '-interaction=nonstopmode', '-ipc', tex_pipe],
         )
         os.write(self._tex.process.stdin.fileno(),'X'*10)
 
-        self._writer_thread = daemon(feed_input, self.filename, self.input_queue)
+        self._writer_thread = daemon(feed_input, tex_pipe, self.input_queue)
         self._watcher_thread = daemon(watch_stdout, self._tex.process.stdout,
                                       self.watch_queue)
-        self._reader_thread = daemon(read_output, "test.dvi",
+        self._reader_thread = daemon(read_output, dvi_pipe,
                                      self.output_queue, self.sync)
 
 
@@ -1178,27 +1207,21 @@ class TexDaemon(object):
         self.watch_queue.get(timeout=5)
         self.output_queue.get()
 
-    def start(self):
-        return self
-
+    # TODO: Restart??? Error handling...
 
     def page(self, tex):
         p = self._template.page(tex)
         #print(p)
         self._put(p + '\n\n')
         self.sync.release()
-
-        w = self.watch_queue.get()
-        return w, self.output_queue.get()
-
-        #:w
-        #try:
-        #    errors = self.watch_queue.get(timeout=0.5)
-        #except queue.Empty:
-        #    return ([], [], []), ''
-        #else:
-        #dvi = self.output_queue.get()
-
+        try:
+            w = self.watch_queue.get(timeout=1.0)
+            o = self.output_queue.get(timeout=1.0)
+        except:
+            self._tex.kill()
+            self.tempdir.close()
+            raise RuntimeError('LaTeX has most probably crashed -- perhaps bad input?')
+        return w, o
 
     def _put(self, lines):
         # Want an Async wrapper around thread get
@@ -1215,4 +1238,3 @@ class TexDaemon(object):
             self.join()
         except:
             pass
-
