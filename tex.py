@@ -1,3 +1,12 @@
+###
+###
+# This file provides what was formerly dvipy. Everything in here is working up
+# to the TexDaemon: a class which, on init, spawns LaTeX. Everything in this
+# module is some kind of support for that -- be it helper threads or otherwise.
+
+# Due to problems associated with threads running in a module, this module does
+# not export a 'default' TexDaemon.
+
 import os
 import time
 import threading

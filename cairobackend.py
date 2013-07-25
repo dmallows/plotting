@@ -2,6 +2,7 @@ import math
 import itertools
 import cairo
 import tex
+from deps import depman
 
 # We could quite easily simplify most of this by using a 'new' (2010)
 # RecordingSurface from Cairo,  but then we would lose a lot of the niceness of
@@ -10,10 +11,8 @@ import tex
 # more powerful. Finally, using Cairo's RecordingSurface removes the possibility
 # of using this on really old and outdated systems.
 
-class CairoBackend(object):
-    def __init__(self):
-        self.tex = tex.TexDaemon()
 
+class CairoBackend(object):
     def show(self, pic, block):
         try:
             self.gui.show(pic, block)
@@ -198,3 +197,7 @@ class CairoSizer(CairoRenderer):
             return self.draw(op, args)
         else:
             f(*args)
+
+
+depman.provide('backend', CairoBackend)
+depman.provide('texdaemon', tex.TexDaemon)

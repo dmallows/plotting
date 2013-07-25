@@ -1,10 +1,7 @@
 # This module doesn't even need cairo, but it's important that it does
 
-print 'here'
-import cairobackend
-import cursor
+from deps import depman
 
-#default_backend = cairobackend.CairoBackend()
 default_units = {
     'mm': (0.35277777777777777778, 2.83464566929133858268),
     'cm': (0.03527777777777777778, 28.34645669291338582677),
@@ -13,29 +10,15 @@ default_units = {
     'pt': (1, 1),
 }
 
-class Manager(object):
-    """Simplified dependency injector"""
-    def __init__(self):
-        self._defaults = {'backend': (cairobackend.CairoBackend, (), {})}
-        self._cached = {}
-
-    def get(x, *args, **kwargs):
-        cache_tag = (x, args, kwargs)
-        got = (self._cached.get(cache_tag) or
-               self._defaults[x](*args, **kwargs)
-               )
-        self._cached[cache_tag] = got
-        return got
-
-manager = Manager()
 
 class Picture(object):
     """A drawing is a sequence of commands."""
     __slots__ = ['commands', 'backend', '_units', '_default_units']
 
-    def __init__(self, commands=None, backend=None,
+    @depman.require(backend='backend')
+    def __init__(self, backend, commands=None,
                  units=default_units):
-        self.backend = backend or manager.get('backend')
+        self.backend = backend
         self.commands = [] if commands is None else commands
         self._default_units = units.get('default', 'pt')
         self._units = default_units
@@ -155,14 +138,6 @@ class Picture(object):
         s = self._units[old_units][1] * self._units[new_units][0]
         return (s * x, s * y)
 
-
-    def cursor(self, x=0, y=0, units=None):
-        """
-        Creates and returns a new cursor from this picture.
-
-        """
-        units = units or self._default_units
-        return cursor.Cursor(self, x, y, units)
 
     def __repr__(self):
         return '<Picture(%r)>' % self.commands

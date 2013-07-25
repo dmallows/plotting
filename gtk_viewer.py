@@ -1,14 +1,12 @@
 # Let's start with a simple picture
-import cairobackend
 import gtk
-from picture import Manager
-
-manager = Manager()
+from deps import depman
 
 class GtkViewer(object):
-    def __init__(self, picture, backend=None):
+    @depman.require(backend='backend')
+    def __init__(self, picture, backend):
         self._picture = picture
-        backend = backend or manager.get('backend')
+        self.backend = backend
         self._window = gtk.Window()
         self._da = gtk.DrawingArea()
 
@@ -30,7 +28,7 @@ class GtkViewer(object):
     def _redraw(self, da, ev):
         # Use the scale given by the thing itself
         cr = da.window.cairo_create()
-        x0, y0, x1, y1 = backend.size(self._picture)
+        x0, y0, x1, y1 = self.backend.size(self._picture)
         w = x1 - x0
         h = y1 - y0
 
@@ -66,7 +64,7 @@ class GtkViewer(object):
         cr.fill()
         cr.restore()
 
-        backend.draw_to_context(self._picture, cr)
+        self.backend.draw_to_context(self._picture, cr)
 
     def run(self):
         gtk.main()
