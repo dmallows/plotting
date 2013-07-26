@@ -1,11 +1,16 @@
-import picture
-from deps import depman
+from core import Picture
 
+p = p0 = Picture()
+
+p.shift(100, 100).rotate(45).tex(r'This is {\TeX} and it handles things okay $3 \times 2$')
+p.fill()
+
+print p
+print p0
+p0.save('test.pdf')
 # This is a job for freetype?!
 #p = picture.Picture()
 
-t = 
-print t.page('foo')
 #t = TexDaemon()
 
 #print t.page('foo')

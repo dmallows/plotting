@@ -1,8 +1,6 @@
 import math
 import itertools
 import cairo
-import tex
-from deps import depman
 
 # We could quite easily simplify most of this by using a 'new' (2010)
 # RecordingSurface from Cairo,  but then we would lose a lot of the niceness of
@@ -11,16 +9,19 @@ from deps import depman
 # more powerful. Finally, using Cairo's RecordingSurface removes the possibility
 # of using this on really old and outdated systems.
 
+from deps import depman
 
 class CairoBackend(object):
+
     def show(self, pic, block):
-        try:
-            self.gui.show(pic, block)
-        except AttributeError:
-            import gtk_gui
-            gui = gtk_gui.GuiRemote()
-            gui.show(pic, block)
-            self.gui = gui
+        pass
+    #    try:
+    #        self.gui.show(pic, block)
+    #    except AttributeError:
+    #        import gtk_gui
+    #        gui = gtk_gui.GuiRemote()
+    #        gui.show(pic, block)
+    #        self.gui = gui
 
     def save(self, pic, filename, filetype):
         # Determine the filetype automatically from filename
@@ -46,7 +47,10 @@ class CairoBackend(object):
 
 
 class CairoRenderer(object):
-    def __init__(self, cr):
+    @depman.require(texd='texdaemon', textrenderer='textrenderer')
+    def __init__(self, cr, texd, textrenderer):
+        self.texd = texd
+        self.textrenderer = textrenderer
         self._cr = cr
 
     def draw_picture(self, picture):
@@ -115,8 +119,9 @@ class CairoRenderer(object):
     def draw_fill_preserve(self):
         self._cr.fill_preserve()
 
-    def draw_tex(self):
-        pass
+    def draw_tex(self, tex, x, y):
+        status, glyphs = self.texd.page(tex)
+        self.textrenderer.render(self._cr, glyphs)
 
     def draw(self, op, args):
         try:
@@ -128,7 +133,10 @@ class CairoRenderer(object):
                 raise ValueError('Instruction %s is not implemented' % op)
 
 class CairoSizer(CairoRenderer):
-    def __init__(self):
+    @depman.require(texd='texdaemon', textrenderer='textrenderer')
+    def __init__(self, texd, textrenderer):
+        self.texd = texd
+        self.textrenderer = textrenderer
         surf = cairo.ImageSurface(cairo.FORMAT_RGB24, 1, 1)
         self._cr = cairo.Context(surf)
         self.extents = None
@@ -198,6 +206,3 @@ class CairoSizer(CairoRenderer):
         else:
             f(*args)
 
-
-depman.provide('backend', CairoBackend)
-depman.provide('texdaemon', tex.TexDaemon)

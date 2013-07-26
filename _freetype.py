@@ -97,7 +97,7 @@ class TextRenderer(object):
         self._faces[name] = face
         return face
 
-    def type_texlet(self, cr, dvi, groupby=itertools.groupby):
+    def render(self, cr, dvi, groupby=itertools.groupby):
         for op, xs in groupby(dvi[0], key=first):
             if op == 'c':
                 for font, chars in groupby(xs, key=fifth):
@@ -105,6 +105,7 @@ class TextRenderer(object):
                     face = self.load(fn)
                     face.set_cairo_font(cr, fs)
                     _, x, y, c, __ = zip(*chars)
+                    print c
                     c = face.get_name_index(c)
                     cr.show_glyphs(zip(c, x, y))
 

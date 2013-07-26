@@ -16,10 +16,10 @@ class Picture(object):
     __slots__ = ['commands', 'backend', '_units', '_default_units']
 
     @depman.require(backend='backend')
-    def __init__(self, backend, commands=None,
+    def __init__(self, backend, commands=(),
                  units=default_units):
         self.backend = backend
-        self.commands = [] if commands is None else commands
+        self.commands = list(commands)
         self._default_units = units.get('default', 'pt')
         self._units = default_units
 
@@ -27,20 +27,20 @@ class Picture(object):
         self.commands.append(args)
         return self
 
-    def subpicture(self, commands=None):
+    def subpicture(self, commands=()):
         """
         Create a picture which is added to this picture. Return new
         sub-picture.
 
         """
-        subpic = Picture(commands if commands is not None else [])
+        subpic = Picture(commands=commands)
         self._cput('picture', subpic)
         return subpic
 
     def picture(self, picture):
         """
         Create a picture which is added to this picture. Return new
-        sub-picture.
+        picture.
 
         """
         return self._cput('picture', picture)
@@ -59,6 +59,9 @@ class Picture(object):
 
     def stroke(self):
         return self._cput('stroke')
+
+    def fill(self):
+        return self._cput('fill')
 
     def rectangle(self, x, y, w, h):
         """
@@ -107,7 +110,10 @@ class Picture(object):
     def linewidth(self, w=2.0):
         return self._cput('set_line_width', w)
 
-    def save(self, filename, filetype='auto'):
+    def tex(self, tex, x=0, y=0):
+        return self._cput('tex', tex, x, y)
+
+    def save(self, filename, filetype=None):
         """
         Save the picture to a file.
 
@@ -120,6 +126,7 @@ class Picture(object):
 
         """
         return self.backend.show(self, block)
+
 
     def size(self):
         """

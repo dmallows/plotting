@@ -981,11 +981,8 @@ def mkfifos(*filenames):
 DEFAULT_TEMPLATE_STR = r"""
 
 \documentclass[12pt]{article}
-\usepackage[T1]{fontenc}
+%\usepackage[T1]{fontenc}
 \usepackage[active]{preview}
-\usepackage{microtype}
-\usepackage[T1]{fontenc}
-\usepackage[]{eulervm}
 
 \def\startpage{\begin{preview}}
 \def\stoppage{\end{preview}}
