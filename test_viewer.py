@@ -1,12 +1,23 @@
 from core import Picture
+from deps import depman
+import random
 
 p = p0 = Picture()
 
-p.shift(100, 100).rotate(45).tex(r'This is {\TeX} and it handles things okay $3 \times 2$')
-p.fill()
 
-print p
-print p0
+t = p.shift(100, 100)
+for i in xrange(10):
+    t.shift(random.randrange(100),
+            random.randrange(100)).\
+            shift(-100, 0).\
+            tex(r'Hello World! 01745 88127')
+#p.fill()
+
+#tex = depman.get('texdaemon')
+#tex.page(r'$3 \times 2$')
+
+#print p
+#print p0
 p0.save('test.pdf')
 # This is a job for freetype?!
 #p = picture.Picture()

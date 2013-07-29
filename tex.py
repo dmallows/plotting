@@ -227,9 +227,6 @@ class FontMap(object):
 
             return vec
 
-        if not encodings:
-            encodings = ['dvips.enc']
-
         all_encs = self._encodings
 
         new_encodings = frozenset(encodings).difference(self._encodings)
@@ -729,6 +726,7 @@ with vf.op() as op:
                 fmt=fmt(I4, I4, I4, I1, I1),
                 Font=FontMetrics):
 
+
         k = unsigned[n](stream)
         c, s, d, a, l = fmt(stream)
         n = read_string(stream, a + l)
@@ -981,8 +979,9 @@ def mkfifos(*filenames):
 DEFAULT_TEMPLATE_STR = r"""
 
 \documentclass[12pt]{article}
-%\usepackage[T1]{fontenc}
+
 \usepackage[active]{preview}
+\usepackage[osf]{mathpazo}
 
 \def\startpage{\begin{preview}}
 \def\stoppage{\end{preview}}

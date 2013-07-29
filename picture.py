@@ -90,6 +90,10 @@ class Picture(object):
         Return a subpicture that has been rotated by `angle` degrees.
 
         """
+        # We need a way to track all the transformations that have happened to
+        # an object, either outside of cairo (the sensible) or by replaying the
+        # transformation commands in a blank picture (less sensible due to
+        # coupling)
         return self.subpicture([('rotate', angle)])
 
     def scale(self, sx, sy=None):

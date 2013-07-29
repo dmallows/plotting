@@ -21,13 +21,21 @@ FT_Face = PTR(FT_Face_Rec)
 FT_Error = c.c_int
 FT_UINT = c.c_uint
 FT_LONG = c.c_long
+FT_ULONG = c.c_ulong
 FT_STRING = c.c_char_p
+
+ADOBE_CUSTOM = c.c_uint32(
+    (ord('A') << 24) | (ord('D') << 16) | (ord('B') << 8) | ord('C')
+)
+
 
 # Function types
 FUNCTIONS = [
     ('Init_FreeType', [PTR(FT_Library)], FT_Error),
     ('New_Face', [FT_Library, FT_STRING, FT_LONG, PTR(FT_Face)], FT_Error),
-    ('Get_Name_Index', [FT_Face, FT_STRING], FT_UINT)
+    ('Get_Name_Index', [FT_Face, FT_STRING], FT_UINT),
+    ('Get_Char_Index', [FT_Face, FT_ULONG], FT_UINT),
+    ('Select_Charmap', [FT_Face, c.c_uint32], FT_Error)
 ]
 
 for f, argtypes, restype in FUNCTIONS:
@@ -70,9 +78,17 @@ class Face(object):
         FT.FT_New_Face(LIB, name, 0, ptr(self.face))
         self._cairoface = CAIRO.cairo_ft_font_face_create_for_ft_face(self.face, 0)
 
+    def select_charmap(self, encoding):
+        return FT.FT_Select_Charmap(self, encoding)
+
     def get_name_index(self, chars):
         gni = FT.FT_Get_Name_Index
         return [gni(self, c) for c in chars]
+
+    def get_char_index(self, chars):
+        gci = FT.FT_Get_Char_Index
+        return [gci(self, c) for c in chars]
+
 
 
     def set_cairo_font(self, cr, size):
@@ -95,9 +111,11 @@ class TextRenderer(object):
     def load(self, name):
         face = self._faces.get(name) or Face(name)
         self._faces[name] = face
+        face.select_charmap(ADOBE_CUSTOM)
         return face
 
     def render(self, cr, dvi, groupby=itertools.groupby):
+        # This is fucked!
         for op, xs in groupby(dvi[0], key=first):
             if op == 'c':
                 for font, chars in groupby(xs, key=fifth):
@@ -105,8 +123,12 @@ class TextRenderer(object):
                     face = self.load(fn)
                     face.set_cairo_font(cr, fs)
                     _, x, y, c, __ = zip(*chars)
-                    print c
-                    c = face.get_name_index(c)
+
+                    try:
+                        c = face.get_name_index(c)
+                    except:
+                        c = face.get_char_index(c)
+
                     cr.show_glyphs(zip(c, x, y))
 
             elif op == 'r':
